@@ -80,6 +80,18 @@ async def import_tasks(file: UploadFile = File(...), db: Session = Depends(get_d
         created_tasks.append(task_crud.create_task(db, task))
     return {"message": f"Se importaron {len(created_tasks)} tareas exitosamente"}
 
+@app.post("/tasks/duplicate", dependencies=[Depends(get_api_key)])
+def duplicate_tasks(request: task_schemas.TaskDuplicate, db: Session = Depends(get_db)):
+    tasks = task_crud.duplicate_tasks(db, source_date=request.source_date, target_date=request.target_date)
+    return {"message": f"Se duplicaron {len(tasks)} tareas de {request.source_date} a {request.target_date}"}
+
+@app.post("/tasks/{task_id}/duplicate", response_model=task_schemas.Task, dependencies=[Depends(get_api_key)])
+def duplicate_single_task(task_id: int, request: task_schemas.TaskSingleDuplicate, db: Session = Depends(get_db)):
+    db_task = task_crud.duplicate_single_task(db, task_id=task_id, target_date=request.target_date)
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+    return db_task
+
 @app.get("/tasks/template/download")
 def download_template():
     template_content = (

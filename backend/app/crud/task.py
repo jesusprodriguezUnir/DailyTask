@@ -38,3 +38,48 @@ def delete_task(db: Session, task_id: int):
         db.commit()
         return True
     return False
+
+def duplicate_tasks(db: Session, source_date: date, target_date: date):
+    tasks = db.query(Task).filter(Task.date == source_date).all()
+    duplicated_tasks = []
+    for task in tasks:
+        # Creamos una copia del objeto Task, quitando el id y cambiando la fecha
+        new_task_data = {
+            "date": target_date,
+            "description": task.description,
+            "start_time": task.start_time,
+            "end_time": task.end_time,
+            "duration": task.duration,
+            "category": task.category,
+            "tags": task.tags,
+            "status": "pendiente" # Al duplicar, las tareas vuelven a estar pendientes
+        }
+        db_task = Task(**new_task_data)
+        db.add(db_task)
+        duplicated_tasks.append(db_task)
+    
+    db.commit()
+    for task in duplicated_tasks:
+        db.refresh(task)
+    return duplicated_tasks
+
+def duplicate_single_task(db: Session, task_id: int, target_date: date):
+    original_task = db.query(Task).filter(Task.id == task_id).first()
+    if not original_task:
+        return None
+    
+    new_task_data = {
+        "date": target_date,
+        "description": original_task.description,
+        "start_time": original_task.start_time,
+        "end_time": original_task.end_time,
+        "duration": original_task.duration,
+        "category": original_task.category,
+        "tags": original_task.tags,
+        "status": "pendiente" # Siempre pendiente al duplicar
+    }
+    db_task = Task(**new_task_data)
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    return db_task

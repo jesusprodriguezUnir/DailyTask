@@ -59,6 +59,22 @@ if uploaded_file and st.sidebar.button("Importar"):
     st.sidebar.success(res.get("message", "Importado"))
     st.rerun()
 
+st.sidebar.divider()
+st.sidebar.subheader("Duplicar Tareas")
+source_date_dup = st.sidebar.date_input("De (Origen)", date.today(), key="src_dup")
+target_date_dup = st.sidebar.date_input("A (Destino)", date.today() + timedelta(days=1), key="tgt_dup")
+
+if st.sidebar.button("🚀 Duplicar Tareas"):
+    if source_date_dup == target_date_dup:
+        st.sidebar.warning("La fecha de origen y destino deben ser diferentes.")
+    else:
+        res = api.duplicate_tasks(source_date_dup, target_date_dup)
+        if "error" in res:
+            st.sidebar.error(res["error"])
+        else:
+            st.sidebar.success(res.get("message", "Tareas duplicadas"))
+            st.rerun()
+
 if "active_tab" not in st.session_state:
     st.session_state.active_tab = "📅 Calendario"
 
@@ -255,6 +271,37 @@ if st.session_state.active_tab == "📅 Calendario":
                     api.delete_task(event_data['id'])
                     st.toast("Tarea eliminada")
                     st.rerun()
+            
+            # Widget de Replicación Rápida mejorado
+            st.divider()
+            st.markdown("### 🚀 Replicación Rápida")
+            with st.container(border=True):
+                st.info("Crea copias de esta tarea en otros días.")
+                # Usamos multiselect de fechas si es posible, o simplemente permitimos varias una a una
+                target_dates = st.date_input(
+                    "Selecciona las fechas destino", 
+                    value=[], 
+                    key=f"rep_dates_{event_data['id']}",
+                    help="Puedes seleccionar varios días si tu navegador lo permite"
+                )
+                
+                if st.button("✨ Replicar en Fechas Seleccionadas", use_container_width=True, type="primary", key=f"btn_rep_{event_data['id']}"):
+                    if not target_dates:
+                        st.warning("Selecciona al menos una fecha.")
+                    else:
+                        # Si es una sola fecha (date), la metemos en lista. Si es lista/tupla, la usamos.
+                        dates_to_proc = target_dates if isinstance(target_dates, (list, tuple)) else [target_dates]
+                        success_count = 0
+                        for d in dates_to_proc:
+                            res = api.duplicate_single_task(event_data['id'], d)
+                            if "error" not in res:
+                                success_count += 1
+                        
+                        if success_count > 0:
+                            st.success(f"¡Tarea replicada en {success_count} fecha(s)!")
+                            st.rerun()
+                        else:
+                            st.error("No se pudo replicar la tarea.")
         else:
             st.write("Selecciona una tarea o arrastra en el calendario para crear una.")
     
@@ -333,6 +380,34 @@ if st.session_state.active_tab == "➕ Nueva Tarea":
                     st.session_state.pre_selection = None
                     st.session_state.active_tab = "📅 Calendario"
                     st.rerun()
+
+    # Formulario de replicación dedicado dentro de la edición
+    if is_editing:
+        st.divider()
+        st.subheader("🚀 Replicar esta tarea a otros días")
+        with st.container(border=True):
+            col_rep1, col_rep2 = st.columns([2, 1])
+            with col_rep1:
+                rep_dates_form = st.date_input(
+                    "¿A qué otros días quieres copiar esta tarea?", 
+                    value=[], 
+                    key="rep_dates_form"
+                )
+            with col_rep2:
+                st.write("") # Espaciado
+                st.write("") 
+                if st.button("🚀 Replicar Ahora", use_container_width=True):
+                    if not rep_dates_form:
+                        st.warning("Selecciona al menos una fecha")
+                    else:
+                        dates_to_proc = rep_dates_form if isinstance(rep_dates_form, (list, tuple)) else [rep_dates_form]
+                        count = 0
+                        for d in dates_to_proc:
+                            res = api.duplicate_single_task(pre["id"], d)
+                            if "error" not in res:
+                                count += 1
+                        st.success(f"✅ Tarea replicada en {count} fecha(s)")
+                        st.rerun()
 
         if submit:
             if not t_desc:

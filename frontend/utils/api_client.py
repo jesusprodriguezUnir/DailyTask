@@ -72,6 +72,28 @@ class APIClient:
         response = httpx.post(f"{BASE_URL}/tasks/import", headers=self.headers, files=files)
         return response.json()
 
+    def duplicate_tasks(self, source_date, target_date):
+        payload = {
+            "source_date": source_date.isoformat(),
+            "target_date": target_date.isoformat()
+        }
+        try:
+            response = httpx.post(f"{BASE_URL}/tasks/duplicate", headers=self.headers, json=payload)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error al duplicar tareas: {e}")
+            return {"error": str(e)}
+
+    def duplicate_single_task(self, task_id, target_date):
+        payload = {"target_date": target_date.isoformat()}
+        try:
+            response = httpx.post(f"{BASE_URL}/tasks/{task_id}/duplicate", headers=self.headers, json=payload)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            return {"error": str(e)}
+
     def download_template(self):
         response = httpx.get(f"{BASE_URL}/tasks/template/download", headers=self.headers)
         return response.content

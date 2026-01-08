@@ -32,6 +32,13 @@ class TaskUpdate(BaseModel):
     tags: Optional[str] = None
     status: Optional[TaskStatus] = None
 
+class TaskDuplicate(BaseModel):
+    source_date: datetime.date
+    target_date: datetime.date
+
+class TaskSingleDuplicate(BaseModel):
+    target_date: datetime.date
+
 class Task(TaskBase):
     id: int
 
