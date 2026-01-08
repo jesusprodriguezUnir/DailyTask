@@ -34,6 +34,15 @@ class APIClient:
             print(f"Error al crear tarea: {e}")
             return {"error": str(e)}
 
+    def update_task(self, task_id, task_data):
+        try:
+            response = httpx.put(f"{BASE_URL}/tasks/{task_id}", headers=self.headers, json=task_data)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error al actualizar tarea: {e}")
+            return {"error": str(e)}
+
     def delete_task(self, task_id):
         try:
             response = httpx.delete(f"{BASE_URL}/tasks/{task_id}", headers=self.headers)
