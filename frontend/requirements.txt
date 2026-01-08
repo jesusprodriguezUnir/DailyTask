@@ -2,3 +2,4 @@ streamlit
 httpx
 pandas
 python-dotenv
+streamlit-calendar

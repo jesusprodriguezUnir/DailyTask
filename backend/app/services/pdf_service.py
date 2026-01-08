@@ -21,19 +21,22 @@ def generate_tasks_pdf(tasks: List[Task], output_path: str):
 
     # Cabecera de la tabla
     pdf.set_fill_color(200, 220, 255)
-    pdf.cell(25, 10, "Fecha", 1, 0, 'C', 1)
-    pdf.cell(80, 10, "Descripción", 1, 0, 'C', 1)
-    pdf.cell(20, 10, "Horas", 1, 0, 'C', 1)
-    pdf.cell(35, 10, "Etiquetas", 1, 0, 'C', 1)
+    pdf.cell(20, 10, "Fecha", 1, 0, 'C', 1)
+    pdf.cell(60, 10, "Descripción", 1, 0, 'C', 1)
+    pdf.cell(35, 10, "Categoría", 1, 0, 'C', 1)
+    pdf.cell(15, 10, "Inicio", 1, 0, 'C', 1)
+    pdf.cell(15, 10, "Fin", 1, 0, 'C', 1)
+    pdf.cell(15, 10, "Hrs", 1, 0, 'C', 1)
     pdf.cell(30, 10, "Estado", 1, 1, 'C', 1)
 
     for task in tasks:
-        pdf.cell(25, 10, str(task.date), 1)
-        # Handle long descriptions
-        desc = task.description[:45] + "..." if len(task.description) > 48 else task.description
-        pdf.cell(80, 10, desc, 1)
-        pdf.cell(20, 10, str(task.duration), 1, 0, 'C')
-        pdf.cell(35, 10, task.tags[:20], 1)
+        pdf.cell(20, 10, str(task.date), 1)
+        desc = task.description[:35] + "..." if len(task.description) > 38 else task.description
+        pdf.cell(60, 10, desc, 1)
+        pdf.cell(35, 10, (task.category or "")[:18], 1)
+        pdf.cell(15, 10, task.start_time or "", 1, 0, 'C')
+        pdf.cell(15, 10, task.end_time or "", 1, 0, 'C')
+        pdf.cell(15, 10, f"{task.duration:.1f}", 1, 0, 'C')
         pdf.cell(30, 10, task.status, 1, 1, 'C')
 
     pdf.output(output_path)

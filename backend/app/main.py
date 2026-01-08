@@ -79,3 +79,15 @@ async def import_tasks(file: UploadFile = File(...), db: Session = Depends(get_d
     for task in tasks_to_create:
         created_tasks.append(task_crud.create_task(db, task))
     return {"message": f"Se importaron {len(created_tasks)} tareas exitosamente"}
+
+@app.get("/tasks/template/download")
+def download_template():
+    template_content = (
+        "# Formato: Fecha;Descripción;Hora Inicio;Hora Fin;Categoría (Opcional);Etiquetas;Estado\n"
+        "2026-01-08;Reunión de desarrollo;09:00;10:30;Reunion Desarrollo;técnico,daily;completada\n"
+        "2026-01-08;Sprint Planning;11:00;12:00;Planning;gestión;pendiente\n"
+        "2026-01-08;Reunión con Cliente Alpha;15:00;16:00;Reunion con Cliente;ventas;en progreso\n"
+    )
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
+        tmp.write(template_content.encode("utf-8"))
+        return FileResponse(tmp.name, filename="plantilla_tareas_2026.txt")

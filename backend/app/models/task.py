@@ -13,6 +13,9 @@ class Task(Base):
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, index=True)
     description = Column(String)
-    duration = Column(Float) # Duración en horas
+    start_time = Column(String, nullable=True) # Formato HH:MM
+    end_time = Column(String, nullable=True)   # Formato HH:MM
+    duration = Column(Float) # Duración calculada en horas
+    category = Column(String, nullable=True)
     tags = Column(String) # Guardado como string separado por comas
     status = Column(String, default=TaskStatus.PENDING)

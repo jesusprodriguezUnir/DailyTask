@@ -11,7 +11,10 @@ class TaskStatus(str, enum.Enum):
 class TaskBase(BaseModel):
     date: date
     description: str
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
     duration: float
+    category: Optional[str] = None
     tags: str
     status: TaskStatus = TaskStatus.PENDING
 
@@ -21,7 +24,10 @@ class TaskCreate(TaskBase):
 class TaskUpdate(BaseModel):
     date: Optional[date] = None
     description: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
     duration: Optional[float] = None
+    category: Optional[str] = None
     tags: Optional[str] = None
     status: Optional[TaskStatus] = None
 

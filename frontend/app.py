@@ -1,11 +1,24 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, datetime, time
+from streamlit_calendar import calendar
 from utils.api_client import APIClient
 
 st.set_page_config(page_title="DailyTask 2026", layout="wide")
 
 api = APIClient()
+
+CATEGORY_COLORS = {
+    "Sin Categoría": "#9E9E9E",      # Gris
+    "Reunion Desarrollo": "#2196F3", # Azul
+    "Reunion con Pablo": "#9C27B0",  # Morado
+    "Reunion con Cesar": "#673AB7",  # Indigo
+    "Reunion con Cliente": "#FF9800",# Naranja
+    "Daily": "#4CAF50",              # Verde
+    "Planning": "#E91E63"            # Rosa
+}
+
+CATEGORIES = list(CATEGORY_COLORS.keys())
 
 st.title("📌 Control de Tareas Diarias 2026")
 
@@ -25,51 +38,148 @@ if st.sidebar.button("Descargar Reporte PDF"):
 
 st.sidebar.divider()
 st.sidebar.subheader("Importar Tareas (.txt)")
-uploaded_file = st.sidebar.file_uploader("Formato: YYYY-MM-DD;Desc;Dur;Tags;Estado", type=["txt"])
+
+# Botón para descargar plantilla
+if st.sidebar.button("Descargar Plantilla TXT"):
+    template = api.download_template()
+    st.sidebar.download_button(
+        label="📄 Bajar Plantilla",
+        data=template,
+        file_name="plantilla_tareas.txt",
+        mime="text/plain"
+    )
+
+uploaded_file = st.sidebar.file_uploader("Subir archivo de tareas", type=["txt"])
 if uploaded_file and st.sidebar.button("Importar"):
     res = api.import_tasks(uploaded_file.getvalue())
     st.sidebar.success(res.get("message", "Importado"))
     st.rerun()
 
 # Pestañas principales
-tab1, tab2 = st.tabs(["📋 Listado de Tareas", "➕ Nueva Tarea"])
+tab1, tab2 = st.tabs(["� Calendario de Tareas", "➕ Nueva Tarea"])
 
 with tab1:
     tasks = api.get_tasks(start_date, end_date)
+    
     if tasks:
-        df = pd.DataFrame(tasks)
-        # Mostrar tabla bonita
-        st.dataframe(df[["date", "description", "duration", "tags", "status"]], use_container_width=True)
+        # Formatear eventos para el calendario
+        calendar_events = []
+        for task in tasks:
+            start_dt = f"{task['date']}T{task.get('start_time', '09:00')}:00"
+            end_dt = f"{task['date']}T{task.get('end_time', '10:00')}:00"
+            
+            calendar_events.append({
+                "id": str(task["id"]),
+                "title": f"[{task.get('category', 'Tarea')}] {task['description'][:20]}...",
+                "start": start_dt,
+                "end": end_dt,
+                "color": CATEGORY_COLORS.get(task.get('category', 'Sin Categoría'), "#9E9E9E"),
+                "extendedProps": {
+                    "description": task["description"],
+                    "category": task.get("category", "N/A"),
+                    "status": task["status"],
+                    "tags": task["tags"]
+                }
+            })
+
+        calendar_options = {
+            "editable": False,
+            "selectable": True,
+            "headerToolbar": {
+                "left": "today prev,next",
+                "center": "title",
+                "right": "timeGridWeek,timeGridDay,dayGridMonth",
+            },
+            "initialView": "timeGridWeek",
+            "slotMinTime": "07:00:00",
+            "slotMaxTime": "21:00:00",
+            "firstDay": 1, # Lunes
+            "locale": "es",
+            "allDaySlot": False
+        }
+
+        col_cal, col_details = st.columns([3, 1])
+
+        with col_cal:
+            state = calendar(
+                events=calendar_events,
+                options=calendar_options,
+                key="daily_calendar",
+            )
+
+        with col_details:
+            st.subheader("🔍 Detalle de Tarea")
+            if state.get("eventClick"):
+                event_data = state["eventClick"]["event"]
+                props = event_data.get("extendedProps", {})
+                
+                st.info(f"**ID:** {event_data['id']}")
+                st.markdown(f"### {props.get('category', 'Sin Categoría')}")
+                st.write(f"**Descripción:** {props.get('description')}")
+                st.write(f"**Estado:** {props.get('status')}")
+                st.write(f"**Etiquetas:** {props.get('tags')}")
+                st.write(f"**Inicio:** {event_data['start']}")
+                st.write(f"**Fin:** {event_data['end']}")
+                
+                if st.button("🗑️ Eliminar esta tarea"):
+                    api.delete_task(event_data['id'])
+                    st.toast("Tarea eliminada")
+                    st.rerun()
+            else:
+                st.write("Haz clic en una tarea del calendario para ver sus detalles.")
         
-        # Opción de eliminar (simple)
-        task_to_del = st.selectbox("Seleccionar ID para eliminar", df["id"] if not df.empty else [])
-        if st.button("Eliminar Tarea"):
-            api.delete_task(task_to_del)
-            st.success(f"Tarea {task_to_del} eliminada")
-            st.rerun()
+        st.divider()
+        st.subheader("📊 Vista de Tabla")
+        df = pd.DataFrame(tasks)
+        available_cols = df.columns.tolist()
+        desired_cols = ["id", "date", "category", "start_time", "end_time", "duration", "description", "status"]
+        cols_to_show = [c for c in desired_cols if c in available_cols]
+        st.dataframe(df[cols_to_show], width="stretch")
     else:
         st.info("No hay tareas registradas en este rango de fechas.")
 
 with tab2:
-    with st.form("new_task"):
-        col1, col2 = st.columns(2)
+    st.subheader("📝 Registrar Nueva Tarea")
+    with st.form("new_task", clear_on_submit=True):
+        col1, col2, col3 = st.columns(3)
         with col1:
             t_date = st.date_input("Fecha", date.today())
-            t_duration = st.number_input("Duración (horas)", min_value=0.1, max_value=24.0, value=1.0)
+            t_category = st.selectbox("Categoría", CATEGORIES)
         with col2:
+            from datetime import datetime, time
+            t_start = st.time_input("Hora Inicio", time(9, 0))
+            t_end = st.time_input("Hora Fin", time(10, 0))
+        with col3:
             t_status = st.selectbox("Estado", ["pendiente", "en progreso", "completada"])
-            t_tags = st.text_input("Etiquetas (sep. por comas)", "reunión, desarrollo")
+            t_tags = st.text_input("Etiquetas", "reunión")
         
         t_desc = st.text_area("Descripción de la tarea")
         
-        if st.form_submit_button("Guardar Tarea"):
-            new_task = {
-                "date": str(t_date),
-                "description": t_desc,
-                "duration": t_duration,
-                "tags": t_tags,
-                "status": t_status
-            }
-            api.create_task(new_task)
-            st.success("Tarea guardada correctamente")
-            st.rerun()
+        submit = st.form_submit_button("💾 Guardar Tarea", use_container_width=True)
+        
+        if submit:
+            if not t_desc:
+                st.error("La descripción es obligatoria")
+            else:
+                # Calcular duración
+                start_dt = datetime.combine(date.today(), t_start)
+                end_dt = datetime.combine(date.today(), t_end)
+                duration = (end_dt - start_dt).seconds / 3600.0
+                
+                new_task = {
+                    "date": str(t_date),
+                    "description": t_desc,
+                    "start_time": t_start.strftime("%H:%M"),
+                    "end_time": t_end.strftime("%H:%M"),
+                    "duration": round(duration, 2),
+                    "category": t_category if t_category != "Sin Categoría" else None,
+                    "tags": t_tags,
+                    "status": t_status
+                }
+                res = api.create_task(new_task)
+                if "error" not in res:
+                    st.success(f"✅ Tarea guardada correctamente (ID: {res.get('id')})")
+                    # No hacemos rerun inmediato para que el usuario vea el mensaje,
+                    # pero el formulario se limpia gracias a clear_on_submit=True
+                else:
+                    st.error(f"❌ Error al guardar: {res.get('error')}")
