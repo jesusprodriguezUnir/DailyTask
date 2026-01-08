@@ -97,3 +97,35 @@ class APIClient:
     def download_template(self):
         response = httpx.get(f"{BASE_URL}/tasks/template/download", headers=self.headers)
         return response.content
+
+    # --- CATEGORIES ---
+    def get_categories(self):
+        try:
+            response = httpx.get(f"{BASE_URL}/categories/", headers=self.headers)
+            if response.status_code != 200:
+                return []
+            return response.json()
+        except Exception as e:
+            print(f"Error al obtener categorías: {e}")
+            return []
+
+    def create_category(self, category_data):
+        try:
+            response = httpx.post(f"{BASE_URL}/categories/", headers=self.headers, json=category_data)
+            return response.json()
+        except Exception as e:
+            return {"error": str(e)}
+
+    def update_category(self, category_id, category_data):
+        try:
+            response = httpx.put(f"{BASE_URL}/categories/{category_id}", headers=self.headers, json=category_data)
+            return response.json()
+        except Exception as e:
+            return {"error": str(e)}
+
+    def delete_category(self, category_id):
+        try:
+            response = httpx.delete(f"{BASE_URL}/categories/{category_id}", headers=self.headers)
+            return response.json()
+        except Exception as e:
+            return {"error": str(e)}

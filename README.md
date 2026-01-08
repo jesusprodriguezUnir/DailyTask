@@ -12,11 +12,14 @@ Aplicación completa para el control de tareas diarias diseñada para el año 20
 ## 🌟 Características Principales
 - **Vista de Calendario Interactiva**: Gestión visual de tareas por día, semana y mes.
 - **Registro Rápido**: Selección de rangos horarios directamente en el calendario para auto-completar el registro.
-- **Categorización**: Clasificación por tipos de reunión o trabajo con códigos de colores.
-- **Reportes Profesionales**: Generación de reportes PDF filtrados por fecha.
+- **Doble Sistema de Replicación**:
+    - **Por Día**: Duplica todas las tareas de un día origen a uno destino desde la barra lateral.
+    - **Replicación Rápida**: Copia una tarea específica a una o varias fechas destino directamente desde el detalle en el calendario.
+- **Gestión Dinámica de Categorías**: Tabla independiente de categorías con nombres y colores personalizados gestionables desde la aplicación.
+- **Reportes Profesionales**: Generación de reportes PDF filtrados por fecha con nombres de categorías dinámicos.
 - **Importación Inteligente**: Procesamiento masivo de tareas desde archivos de texto.
 
-## 🛠️ Instalación Local
+## 🛠️ Instalación y Mantenimiento
 
 1. Instalar dependencias:
    ```bash
@@ -24,17 +27,35 @@ Aplicación completa para el control de tareas diarias diseñada para el año 20
    pip install -r frontend/requirements.txt
    ```
 
-2. Ejecutar Backend:
+2. Inicializar base de datos y categorías:
+   ```bash
+   $env:PYTHONPATH="backend"
+   python backend/scripts/seed_categories.py
+   ```
+
+3. Ejecutar Backend:
    ```bash
    cd backend
    uvicorn app.main:app --reload
    ```
 
-3. Ejecutar Frontend:
+4. Ejecutar Frontend:
    ```bash
    cd frontend
    streamlit run app.py
    ```
+
+## 🧪 Pruebas Unitarias
+Se ha implementado una suite de pruebas para asegurar la estabilidad:
+```bash
+$env:PYTHONPATH="backend"
+pytest backend/tests/
+```
+
+## 📂 Estructura de Scripts
+- `backend/scripts/seed_categories.py`: Inicializa las categorías básicas y sus colores.
+- `backend/scripts/migrate_task_categories.py`: Enlaza tareas antiguas con el nuevo sistema relacional de categorías.
+- `backend/scripts/manual_migration.py`: Script de utilidad para cambios estructurales en SQLite.
 
 ## 🐳 Docker
 Para levantar todo el entorno:

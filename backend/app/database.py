@@ -3,7 +3,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./daily_tasks.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# La base de datos estará en backend/daily_tasks.db (subiendo un nivel desde app/)
+DB_PATH = os.path.join(BASE_DIR, "..", "daily_tasks.db")
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}

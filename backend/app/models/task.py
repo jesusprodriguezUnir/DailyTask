@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Date, Float, Enum
+from sqlalchemy import Column, Integer, String, Date, Float, Enum, ForeignKey
+from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
 
@@ -16,6 +17,9 @@ class Task(Base):
     start_time = Column(String, nullable=True) # Formato HH:MM
     end_time = Column(String, nullable=True)   # Formato HH:MM
     duration = Column(Float) # Duración calculada en horas
-    category = Column(String, nullable=True)
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    category = Column(String, nullable=True) # Mantenemos el campo string temporalmente para compatibilidad o lo quitamos
     tags = Column(String) # Guardado como string separado por comas
     status = Column(String, default=TaskStatus.PENDING)
+
+    category_rel = relationship("Category", back_populates="tasks")

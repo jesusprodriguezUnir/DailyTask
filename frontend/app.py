@@ -8,21 +8,17 @@ st.set_page_config(page_title="DailyTask 2026", layout="wide")
 
 api = APIClient()
 
+# Cargar categorías desde la API
+categories_data = api.get_categories()
+if not categories_data:
+    # Fallback si falla la API
+    CATEGORY_COLORS = {"Sin Categoría": "#9E9E9E"}
+    CATEGORIES = ["Sin Categoría"]
+else:
+    CATEGORY_COLORS = {cat["name"]: cat["color"] for cat in categories_data}
+    CATEGORIES = [cat["name"] for cat in categories_data]
+
 # Inicializar estado para pre-selección desde el calendario
-if "pre_selection" not in st.session_state:
-    st.session_state.pre_selection = None
-
-CATEGORY_COLORS = {
-    "Sin Categoría": "#9E9E9E",      # Gris
-    "Reunion Desarrollo": "#2196F3", # Azul
-    "Reunion con Pablo": "#9C27B0",  # Morado
-    "Reunion con Cesar": "#673AB7",  # Indigo
-    "Reunion con Cliente": "#FF9800",# Naranja
-    "Daily": "#4CAF50",              # Verde
-    "Planning": "#E91E63"            # Rosa
-}
-
-CATEGORIES = list(CATEGORY_COLORS.keys())
 
 st.title("📌 Control de Tareas Diarias 2026")
 
@@ -78,7 +74,7 @@ if st.sidebar.button("🚀 Duplicar Tareas"):
 if "active_tab" not in st.session_state:
     st.session_state.active_tab = "📅 Calendario"
 
-tab_options = ["📅 Calendario", "➕ Nueva Tarea"]
+tab_options = ["📅 Calendario", "➕ Nueva Tarea", "🏷️ Categorías"]
 selected_tab = st.radio("Navegación", tab_options, index=tab_options.index(st.session_state.active_tab), horizontal=True, label_visibility="collapsed")
 
 if selected_tab != st.session_state.active_tab:
@@ -418,12 +414,20 @@ if st.session_state.active_tab == "➕ Nueva Tarea":
                 end_dt = datetime.combine(date.today(), t_end)
                 duration = (end_dt - start_dt).seconds / 3600.0
                 
+                # Buscar ID de categoría seleccionada
+                selected_cat_id = None
+                for cat in categories_data:
+                    if cat["name"] == t_category:
+                        selected_cat_id = cat["id"]
+                        break
+                
                 task_data = {
                     "date": str(t_date),
                     "description": t_desc,
                     "start_time": t_start.strftime("%H:%M"),
                     "end_time": t_end.strftime("%H:%M"),
                     "duration": round(duration, 2),
+                    "category_id": selected_cat_id,
                     "category": t_category if t_category != "Sin Categoría" else None,
                     "tags": t_tags,
                     "status": t_status
@@ -456,3 +460,56 @@ if st.session_state.active_tab == "➕ Nueva Tarea":
                     st.rerun()
                 else:
                     st.error(f"❌ Error: {res.get('error')}")
+
+if st.session_state.active_tab == "🏷️ Categorías":
+    st.subheader("🏷️ Gestión de Categorías")
+    
+    col_list, col_add = st.columns([2, 1])
+    
+    with col_list:
+        st.write("### Categorías Existentes")
+        if not categories_data:
+            st.info("No hay categorías creadas.")
+        else:
+            for cat in categories_data:
+                c1, c2, c3, c4 = st.columns([3, 1, 1, 1])
+                c1.write(f"**{cat['name']}**")
+                c2.color_picker("Color", value=cat['color'], key=f"cp_{cat['id']}", disabled=True)
+                
+                # --- EDICIÓN DE CATEGORÍA ---
+                if c3.button("✏️", key=f"edit_cat_{cat['id']}"):
+                    st.session_state[f"editing_cat_{cat['id']}"] = True
+                
+                if c4.button("🗑️", key=f"del_cat_{cat['id']}"):
+                    api.delete_category(cat['id'])
+                    st.rerun()
+                
+                # Formulario flotante/expandido para edición
+                if st.session_state.get(f"editing_cat_{cat['id']}", False):
+                    with st.form(f"form_edit_cat_{cat['id']}"):
+                        new_name_e = st.text_input("Nuevo Nombre", value=cat['name'])
+                        new_color_e = st.color_picker("Nuevo Color", value=cat['color'])
+                        c_save, c_cancel = st.columns(2)
+                        if c_save.form_submit_button("💾 Guardar Cambios"):
+                            api.update_category(cat['id'], {"name": new_name_e, "color": new_color_e})
+                            st.session_state[f"editing_cat_{cat['id']}"] = False
+                            st.rerun()
+                        if c_cancel.form_submit_button("❌ Cancelar"):
+                            st.session_state[f"editing_cat_{cat['id']}"] = False
+                            st.rerun()
+    
+    with col_add:
+        st.write("### Nueva Categoría")
+        with st.form("new_cat_form"):
+            new_name = st.text_input("Nombre")
+            new_color = st.color_picker("Color", value="#2196F3")
+            if st.form_submit_button("Añadir Categoría"):
+                if new_name:
+                    res = api.create_category({"name": new_name, "color": new_color})
+                    if "error" not in res:
+                        st.success("Categoría creada")
+                        st.rerun()
+                    else:
+                        st.error(f"Error: {res['error']}")
+                else:
+                    st.error("El nombre es obligatorio")

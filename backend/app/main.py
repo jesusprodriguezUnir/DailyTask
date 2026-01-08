@@ -8,15 +8,18 @@ import tempfile
 
 from app.database import engine, Base, get_db
 from app.models import task as task_models
+from app.models import category as category_models
 from app.schemas import task as task_schemas
+from app.schemas import category as category_schemas
 from app.crud import task as task_crud
+from app.crud import category as category_crud
 from app.core.security import get_api_key
 from app.core.config import settings
 from app.services.pdf_service import generate_tasks_pdf
 from app.services.import_service import parse_txt_tasks
 
 # Crear tablas
-task_models.Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -24,6 +27,30 @@ app = FastAPI(title=settings.PROJECT_NAME)
 def read_root():
     return {"message": "Bienvenido a la API de DailyTask 2026"}
 
+# --- CATEGORIES ---
+@app.get("/categories/", response_model=List[category_schemas.Category], dependencies=[Depends(get_api_key)])
+def read_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return category_crud.get_categories(db, skip=skip, limit=limit)
+
+@app.post("/categories/", response_model=category_schemas.Category, dependencies=[Depends(get_api_key)])
+def create_category(category: category_schemas.CategoryCreate, db: Session = Depends(get_db)):
+    return category_crud.create_category(db, category)
+
+@app.put("/categories/{category_id}", response_model=category_schemas.Category, dependencies=[Depends(get_api_key)])
+def update_category(category_id: int, category: category_schemas.CategoryUpdate, db: Session = Depends(get_db)):
+    db_category = category_crud.update_category(db, category_id=category_id, category=category)
+    if db_category is None:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    return db_category
+
+@app.delete("/categories/{category_id}", dependencies=[Depends(get_api_key)])
+def delete_category(category_id: int, db: Session = Depends(get_db)):
+    success = category_crud.delete_category(db, category_id=category_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    return {"message": "Categoría eliminada"}
+
+# --- TASKS ---
 @app.get("/tasks/", response_model=List[task_schemas.Task], dependencies=[Depends(get_api_key)])
 def read_tasks(
     skip: int = 0, 

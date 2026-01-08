@@ -33,7 +33,11 @@ def generate_tasks_pdf(tasks: List[Task], output_path: str):
         pdf.cell(20, 10, str(task.date), 1)
         desc = task.description[:35] + "..." if len(task.description) > 38 else task.description
         pdf.cell(60, 10, desc, 1)
-        pdf.cell(35, 10, (task.category or "")[:18], 1)
+        
+        # Preferir el nombre de la relación si existe
+        cat_name = task.category_rel.name if task.category_rel else (task.category or "")
+        pdf.cell(35, 10, cat_name[:18], 1)
+        
         pdf.cell(15, 10, task.start_time or "", 1, 0, 'C')
         pdf.cell(15, 10, task.end_time or "", 1, 0, 'C')
         pdf.cell(15, 10, f"{task.duration:.1f}", 1, 0, 'C')

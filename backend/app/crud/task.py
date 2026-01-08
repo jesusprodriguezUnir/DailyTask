@@ -1,13 +1,13 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models.task import Task
 from app.schemas.task import TaskCreate, TaskUpdate
 from datetime import date
 
 def get_task(db: Session, task_id: int):
-    return db.query(Task).filter(Task.id == task_id).first()
+    return db.query(Task).options(joinedload(Task.category_rel)).filter(Task.id == task_id).first()
 
 def get_tasks(db: Session, skip: int = 0, limit: int = 100, start_date: date = None, end_date: date = None):
-    query = db.query(Task)
+    query = db.query(Task).options(joinedload(Task.category_rel))
     if start_date:
         query = query.filter(Task.date >= start_date)
     if end_date:
@@ -15,7 +15,15 @@ def get_tasks(db: Session, skip: int = 0, limit: int = 100, start_date: date = N
     return query.offset(skip).limit(limit).all()
 
 def create_task(db: Session, task: TaskCreate):
-    db_task = Task(**task.model_dump())
+    task_data = task.model_dump()
+    # Si tenemos un nombre de categoría pero no un ID, intentamos enlazarlo
+    if task_data.get("category") and not task_data.get("category_id"):
+        from app.models.category import Category
+        cat = db.query(Category).filter(Category.name == task_data["category"]).first()
+        if cat:
+            task_data["category_id"] = cat.id
+            
+    db_task = Task(**task_data)
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
@@ -50,6 +58,7 @@ def duplicate_tasks(db: Session, source_date: date, target_date: date):
             "start_time": task.start_time,
             "end_time": task.end_time,
             "duration": task.duration,
+            "category_id": task.category_id,
             "category": task.category,
             "tags": task.tags,
             "status": "pendiente" # Al duplicar, las tareas vuelven a estar pendientes
@@ -74,6 +83,7 @@ def duplicate_single_task(db: Session, task_id: int, target_date: date):
         "start_time": original_task.start_time,
         "end_time": original_task.end_time,
         "duration": original_task.duration,
+        "category_id": original_task.category_id,
         "category": original_task.category,
         "tags": original_task.tags,
         "status": "pendiente" # Siempre pendiente al duplicar
