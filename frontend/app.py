@@ -8,6 +8,10 @@ st.set_page_config(page_title="DailyTask 2026", layout="wide")
 
 api = APIClient()
 
+# Inicializar estado para pre-selección desde el calendario
+if "pre_selection" not in st.session_state:
+    st.session_state.pre_selection = None
+
 CATEGORY_COLORS = {
     "Sin Categoría": "#9E9E9E",      # Gris
     "Reunion Desarrollo": "#2196F3", # Azul
@@ -83,8 +87,9 @@ with tab1:
             })
 
         calendar_options = {
-            "editable": False,
+            "editable": True,
             "selectable": True,
+            "selectMirror": True,
             "headerToolbar": {
                 "left": "today prev,next",
                 "center": "title",
@@ -106,6 +111,25 @@ with tab1:
                 options=calendar_options,
                 key="daily_calendar",
             )
+            
+            # Capturar selección de rango (click y arrastrar)
+            if state.get("select"):
+                try:
+                    # El formato suele ser 2026-01-08T09:00:00Z o similar
+                    start_str = state["select"]["start"].replace("Z", "")
+                    end_str = state["select"]["end"].replace("Z", "")
+                    
+                    start_dt = datetime.fromisoformat(start_str)
+                    end_dt = datetime.fromisoformat(end_str)
+                    
+                    st.session_state.pre_selection = {
+                        "date": start_dt.date(),
+                        "start_time": start_dt.time(),
+                        "end_time": end_dt.time()
+                    }
+                    st.toast(f"📍 Horario seleccionado: {start_dt.time().strftime('%H:%M')} - {end_dt.time().strftime('%H:%M')}. ¡Ve a 'Nueva Tarea'!", icon="📌")
+                except Exception as e:
+                    st.error(f"Error procesando selección: {e}")
 
         with col_details:
             st.subheader("🔍 Detalle de Tarea")
@@ -140,15 +164,28 @@ with tab1:
 
 with tab2:
     st.subheader("📝 Registrar Nueva Tarea")
+    
+    # Valores por defecto (normales o desde selección de calendario)
+    pre = st.session_state.pre_selection
+    
+    if pre:
+        st.info(f"✨ Usando horario seleccionado en calendario: **{pre['date']}** de **{pre['start_time'].strftime('%H:%M')}** a **{pre['end_time'].strftime('%H:%M')}**")
+        if st.button("Limpiar selección del calendario"):
+            st.session_state.pre_selection = None
+            st.rerun()
+
     with st.form("new_task", clear_on_submit=True):
         col1, col2, col3 = st.columns(3)
         with col1:
-            t_date = st.date_input("Fecha", date.today())
+            default_date = pre["date"] if pre else date.today()
+            t_date = st.date_input("Fecha", default_date)
             t_category = st.selectbox("Categoría", CATEGORIES)
         with col2:
             from datetime import datetime, time
-            t_start = st.time_input("Hora Inicio", time(9, 0))
-            t_end = st.time_input("Hora Fin", time(10, 0))
+            default_start = pre["start_time"] if pre else time(9, 0)
+            default_end = pre["end_time"] if pre else time(10, 0)
+            t_start = st.time_input("Hora Inicio", default_start)
+            t_end = st.time_input("Hora Fin", default_end)
         with col3:
             t_status = st.selectbox("Estado", ["pendiente", "en progreso", "completada"])
             t_tags = st.text_input("Etiquetas", "reunión")
@@ -179,7 +216,8 @@ with tab2:
                 res = api.create_task(new_task)
                 if "error" not in res:
                     st.success(f"✅ Tarea guardada correctamente (ID: {res.get('id')})")
-                    # No hacemos rerun inmediato para que el usuario vea el mensaje,
-                    # pero el formulario se limpia gracias a clear_on_submit=True
+                    # Limpiar pre-selección tras guardar con éxito
+                    st.session_state.pre_selection = None
+                    # No hacemos rerun inmediato para que el usuario vea el mensaje
                 else:
                     st.error(f"❌ Error al guardar: {res.get('error')}")

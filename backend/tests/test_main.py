@@ -29,3 +29,14 @@ def test_create_task():
     data = response.json()
     assert data["description"] == "Test Task"
     assert data["category"] == "Daily"
+
+def test_download_template():
+    response = client.get("/tasks/template/download")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/plain; charset=utf-8"
+
+def test_get_report_pdf():
+    headers = {"X-API-KEY": "daily-task-secret-key-2026"}
+    response = client.get("/report/pdf", headers=headers)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
