@@ -106,6 +106,7 @@ if st.session_state.active_tab == "📅 Calendario":
         "slotMinTime": "07:00:00",
         "slotMaxTime": "21:00:00",
         "firstDay": 1, # Lunes
+        "weekends": False, # Ocultar sábados y domingos
         "locale": "es",
         "allDaySlot": False
     }
@@ -225,14 +226,19 @@ if st.session_state.active_tab == "📅 Calendario":
             st.write(f"**Fin:** {event_data['end']}")
             
             # Botones de Acción
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("✏️ Editar", use_container_width=True):
-                    # Preparar edición
+            c_act1, c_act2, c_act3 = st.columns(3)
+            with c_act1:
+                if st.button("✏️ Editar", use_container_width=True, key=f"edit_{event_data['id']}"):
+                    # (La lógica de edición ya se dispara arriba al pulsar el evento, 
+                    # pero dejamos esto como respaldo visual o manual)
+                    st.session_state.active_tab = "➕ Nueva Tarea"
+                    st.rerun()
+            with c_act2:
+                if st.button("👥 Copiar", use_container_width=True, help="Usa estos datos para una nueva tarea", key=f"copy_{event_data['id']}"):
                     start_dt = datetime.fromisoformat(event_data['start'].replace("Z", ""))
                     end_dt = datetime.fromisoformat(event_data['end'].replace("Z", ""))
                     st.session_state.pre_selection = {
-                        "id": event_data['id'],
+                        "id": None, # Importante: ID a None para que sea nueva
                         "date": start_dt.date(),
                         "start_time": start_dt.time(),
                         "end_time": end_dt.time(),
@@ -241,10 +247,11 @@ if st.session_state.active_tab == "📅 Calendario":
                         "status": props.get('status'),
                         "tags": props.get('tags')
                     }
+                    st.toast("📋 Datos copiados. ¡Listo para guardar como nueva!", icon="✨")
                     st.session_state.active_tab = "➕ Nueva Tarea"
                     st.rerun()
-            with c2:
-                if st.button("🗑️ Eliminar", use_container_width=True):
+            with c_act3:
+                if st.button("🗑️ Eliminar", use_container_width=True, key=f"del_{event_data['id']}"):
                     api.delete_task(event_data['id'])
                     st.toast("Tarea eliminada")
                     st.rerun()
@@ -303,8 +310,12 @@ if st.session_state.active_tab == "➕ Nueva Tarea":
             default_tags = pre.get("tags", "reunión") if pre else "reunión"
             t_tags = st.text_input("Etiquetas", default_tags)
         
-        default_desc = pre.get("description", "") if pre else ""
-        t_desc = st.text_area("Descripción de la tarea", value=default_desc)
+        t_desc = st.text_area("Descripción de la tarea", value=pre.get("description", "") if pre else "")
+
+        # Funcionalidad periódica (Solo para tareas nuevas)
+        repeat_week = False
+        if not is_editing:
+            repeat_week = st.checkbox("🔁 Repetir esta misma tarea de Lunes a Viernes", help="Creará la tarea para todos los días laborables de la semana seleccionada")
         
         btn_label = "💾 Actualizar Tarea" if is_editing else "💾 Guardar Tarea"
         
@@ -346,6 +357,19 @@ if st.session_state.active_tab == "➕ Nueva Tarea":
                 if is_editing:
                     res = api.update_task(pre["id"], task_data)
                     verbo = "actualizada"
+                elif repeat_week:
+                    # Lógica para repetir toda la semana laborable
+                    # Buscamos el lunes de la semana de la fecha seleccionada
+                    start_of_week = t_date - timedelta(days=t_date.weekday())
+                    created_count = 0
+                    for i in range(5): # De lunes (0) a viernes (4)
+                        current_date = start_of_week + timedelta(days=i)
+                        periodic_task = task_data.copy()
+                        periodic_task["date"] = str(current_date)
+                        api.create_task(periodic_task)
+                        created_count += 1
+                    res = {"message": f"Creadas {created_count} tareas"}
+                    verbo = "creada periódicamente"
                 else:
                     res = api.create_task(task_data)
                     verbo = "guardada"

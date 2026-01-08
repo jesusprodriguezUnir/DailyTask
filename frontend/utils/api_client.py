@@ -36,12 +36,20 @@ class APIClient:
 
     def update_task(self, task_id, task_data):
         try:
-            response = httpx.put(f"{BASE_URL}/tasks/{task_id}", headers=self.headers, json=task_data)
-            response.raise_for_status()
+            # Aseguramos que el ID sea string para la URL
+            url = f"{BASE_URL}/tasks/{task_id}"
+            response = httpx.put(url, headers=self.headers, json=task_data)
+            
+            if response.status_code >= 400:
+                try:
+                    error_detail = response.json()
+                except:
+                    error_detail = response.text
+                return {"error": f"API Error {response.status_code}: {error_detail}"}
+                
             return response.json()
         except Exception as e:
-            print(f"Error al actualizar tarea: {e}")
-            return {"error": str(e)}
+            return {"error": f"Connection Error: {str(e)}"}
 
     def delete_task(self, task_id):
         try:

@@ -1,5 +1,6 @@
+from __future__ import annotations
 from pydantic import BaseModel
-from datetime import date
+import datetime
 from typing import Optional, List
 import enum
 
@@ -9,7 +10,7 @@ class TaskStatus(str, enum.Enum):
     COMPLETED = "completada"
 
 class TaskBase(BaseModel):
-    date: date
+    date: datetime.date
     description: str
     start_time: Optional[str] = None
     end_time: Optional[str] = None
@@ -22,7 +23,7 @@ class TaskCreate(TaskBase):
     pass
 
 class TaskUpdate(BaseModel):
-    date: Optional[date] = None
+    date: Optional[datetime.date] = None
     description: Optional[str] = None
     start_time: Optional[str] = None
     end_time: Optional[str] = None
